@@ -1,0 +1,32 @@
+training:
+  gpu_device: 0
+  batch_size: 512
+  num_workers: 4
+  seed: 42
+  lr: 1.e-4
+  weight_decay: 1.e-2
+  max_epochs: 50
+  warm_epochs: 10
+  patience: 10
+  lr_scheduler: cosine
+  lr_decay_steps: 50
+  lr_decay_rate: 0.5
+  lr_decay_min_lr: 1.e-6
+  mask_prob: 0.15
+  log_dir: logs/pretrained-tcr-lm/
+
+model:
+  num_layers: 6
+  dim_head: 32
+  num_attn_heads: 8
+  dim: 256
+  dropout: 0.1
+  max_seq_len: 26
+  use_cdr12_features: True 
+
+data: 
+  train_data_path: data/tcr/train_tcrs.csv
+  val_data_path: data/tcr/val_tcrs.csv
+  test_data_path: data/tcr/test_tcrs.csv
+  max_cdr3_len: 25
+  drop_chain_prob: 0.3

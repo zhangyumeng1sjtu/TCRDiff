@@ -1,0 +1,30 @@
+training:
+  gpu_device: 0
+  batch_size: 1024
+  num_workers: 4
+  seed: 42
+  lr: 2.e-4
+  weight_decay: 1.e-2
+  max_epochs: 200
+  warm_epochs: 20
+  patience: 20
+  lr_scheduler: cosine
+  lr_decay_steps: 200
+  lr_decay_rate: 0.5
+  lr_decay_min_lr: 1.e-6
+  mask_prob: 0.15
+  log_dir: logs/pretrained-peptide-lm/
+
+model:
+  num_layers: 6
+  dim_head: 32
+  num_attn_heads: 8 
+  dim: 256
+  dropout: 0.1
+  max_seq_len: 26
+
+data: 
+  train_data_path: data/pep/train_peptides.txt
+  val_data_path: data/pep/val_peptides.txt
+  test_data_path: data/pep/test_peptides.txt
+  max_peptide_len: 25

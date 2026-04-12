@@ -1,0 +1,75 @@
+training:
+  gpu_device: 0
+  train_batch_size: 12
+  test_batch_size: 96
+  num_workers: 4
+  seed: 42
+  lr: 1.e-4 # 1.e-4
+  weight_decay: 1.e-2
+  max_epochs: 80 # 50
+  warm_epochs: 10
+  patience: 15
+  lr_scheduler: cosine # step
+  lr_decay_steps: 80 # 50
+  lr_decay_rate: 0.5
+  lr_decay_min_lr: 1.e-6
+  pretrained_pmhc_model: logs/peptide-mhc-binding-finetune-2/checkpoint.pt
+  pretrained_tcr_model: logs/pretrained-tcr-dplm/checkpoint.pt
+  log_dir: logs/tcr-pmhc-binding-subsample-2
+  temperature: 0.7
+  contrastive_loss_coef: 0.3
+
+model:
+  tcr_model:
+    num_layers: 6
+    dim_head: 32 
+    num_attn_heads: 8 
+    dim: 256
+    dropout: 0.1
+    max_seq_len: 26
+    use_cdr12_features: False
+  pmhc_model:
+    num_transformer_layers: 6
+    transformer_attn_dim_head: 32
+    transformer_attn_heads: 8
+    dim_single: 256 
+    dim_pairwise: 64
+    pair_bias_attn_dim_head: 32
+    pair_bias_attn_heads: 8
+    tri_attn_dim_head: 16
+    tri_attn_heads: 4
+    dropout: 0.1
+    max_pep_len: 26
+    max_mhc_len: 175
+    dim_mhc_in: 20
+    pair_method: attention
+    num_cnn_layers: 4
+  pairformer:
+    dim_single: 256 
+    dim_pairwise: 64 # 64
+    pair_bias_attn_dim_head: 32
+    pair_bias_attn_heads: 8
+    tri_attn_dim_head: 16 # 16 
+    tri_attn_heads: 4
+    self_attn_dim_head: 32
+    self_attn_heads: 8
+    dropout: 0.1
+    pair_method: attention
+    use_pmhc_struc_feat: False
+
+data: 
+  train_data_path: data/tcrpmhc/subsample/train_pos_data_subsampled.csv # data/tcrpmhc/train_pos_data.csv
+  val_data_path: data/tcrpmhc/validation_tcr_pmhc_data.csv
+  test_data_path: data/tcrpmhc/immrep23_test_data.csv
+  mhc_lib_path: data/pmhc/mhc_lib.json
+  v_gene_lib_path: data/tcrpmhc/v_gene_lib.csv
+  human_bg_tcr_path: data/tcrpmhc/healthy/human_tcr_filtered_2.csv
+  mouse_bg_tcr_path: data/tcrpmhc/healthy/mouse_tcr_filtered_2.csv
+  binding_matrix_path: data/tcrpmhc/subsample/train_tcr_pmhc_possible_binding_matrix.npy # data/tcrpmhc/train_tcr_pmhc_possible_binding_matrix.npy
+  pmhc_pool_path: data/tcrpmhc/subsample/pmhc_pool.csv # data/tcrpmhc/pmhc_pool.csv
+  tcr_pool_path: data/tcrpmhc/subsample/tcr_pool.csv # data/tcrpmhc/tcr_pool.csv
+  max_cdr3_len: 25
+  max_peptide_len: 25
+  max_mhc_len: 175
+  sample_bg_neg_ratio: 2
+  sample_shuffle_neg_ratio: 3
