@@ -7,6 +7,11 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from sklearn.metrics import roc_auc_score, average_precision_score
 
+import sys
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+    
 from TCRDiff.dataset import TCRpMHCDataset, TCRpMHCBatchConverter
 from TCRDiff.utils import set_seed, load_config
 from TCRDiff.model import TCRpMHCPairFormer, TCRpMHCCoembeddingPairFormer, TCRpMHCCoembeddingModel

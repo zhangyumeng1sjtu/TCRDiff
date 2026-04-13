@@ -2,6 +2,12 @@ from argparse import ArgumentParser
 import os
 import torch
 from torch.utils.data import DataLoader
+import pandas as pd
+
+import sys
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 from TCRDiff.dataset import TCRpMHCDataset, TCRpMHCBatchConverter
 from TCRDiff.utils import set_seed, load_config

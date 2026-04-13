@@ -1,3 +1,6 @@
+mkl==2024.0.0
+intel-openmp==2024.2.1
+
 # Core training / inference stack
 torch==2.4.1
 numpy==2.1.2

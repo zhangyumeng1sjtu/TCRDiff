@@ -17,8 +17,8 @@ TCRDiff generates antigen-specific TCRs conditioned on peptide-MHC targets and g
 2. Create a virtual environment by conda
 
    ```python
-   conda create -n TCRDiff_env python=3.12.2
-   conda activate TCRDiff_env
+   conda create -n tcrdiff_env python=3.12.2
+   conda activate tcrdiff_env
    ```
 3. Download PyTorch>=2.4.1, which is compatible with your CUDA version and other Python packages
 
@@ -36,8 +36,8 @@ The following data and model checkpoints are available at [Zenodo]().
 - `data/tcr`: pre-trained TCRs in T-cell repertoires.
 - `data/tcrpmhc`: TCR-pMHC recognition dataset.
 
-- `logs/tcr-pmhc-binding-subsample-2/checkpoint.pt`: checkponits of TCRDiff binding predictor.
-- `logs/tcr-pmhc-cond-dplm-cross-attn-finetune-tcr-dplm-all-constant`: checkponits of TCRDiff generative model.
+- `logs/tcr-pmhc-binding-subsample-2/`: checkponits of TCRDiff binding predictor.
+- `logs/tcr-pmhc-cond-dplm-cross-attn-finetune-tcr-dplm-all-constant/`: checkponits of TCRDiff generative model.
 
 ### Usage
 
@@ -80,14 +80,14 @@ The following data and model checkpoints are available at [Zenodo]().
 
     ```bash
     python scripts/pretrain/pretrain_peptide_lm.py --config configs/config-pretrain-peptide-lm.yml
-    python scripts/train/train_pmhc_model.py --config configs/config-train-tcr-pmhc-model.yml
+    python scripts/train/train_pmhc_model.py --config configs/config-train-pmhc-model.yml
     ```
 
 - Pre-train TCR diffusion language model
 
     ```bash
     python scripts/pretrain/pretrain_tcr_lm.py --config configs/config-pretrain-tcr-lm.yml
-    python scripts/pretrain/pretrain_tcr_dplm.py --config configs/config-train-tcr-pmhc-dplm.yml
+    python scripts/pretrain/pretrain_tcr_dplm.py --config configs/config-pretrain-tcr-dplm.yml
     ```
 
 - Train TCR-pMHC binding predictor

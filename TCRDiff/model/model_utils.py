@@ -125,11 +125,11 @@ def sample_from_categorical(logits=None, temperature=1.0): # small temperature -
         dist = torch.distributions.Categorical(logits=logits.div(temperature))
         tokens = dist.sample()
 
-        # scores = dist.log_prob(tokens)
+        scores = dist.log_prob(tokens) # compute scores based on logits/temperature
 
-        # compute scores based on original logits
-        log_probs = F.log_softmax(logits, dim=-1)
-        scores = log_probs.gather(dim=-1, index=tokens.unsqueeze(-1)).squeeze(-1)
+        # compute scores based on original logits 
+        # log_probs = F.log_softmax(logits, dim=-1)
+        # scores = log_probs.gather(dim=-1, index=tokens.unsqueeze(-1)).squeeze(-1)
 
     else:
         scores, tokens = logits.log_softmax(dim=-1).max(dim=-1)

@@ -7,6 +7,11 @@ import pickle
 import json
 import torch.nn.functional as F
 
+import sys
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 from TCRDiff.trainer import ConditionalTCRDPLMTrainer
 from TCRDiff.utils import set_seed, load_config
 from TCRDiff.utils.encoding import paired_cdr3_batch_encoding, paired_cdr12_batch_encoding, mhc_allele_to_seq, peptide_batch_encoding, mhc_encoding, pmhc_struc_feat_batch_encoding
@@ -156,7 +161,6 @@ def generate(args, proteinmpnn_alpha_logits=None, proteinmpnn_beta_logits=None):
     # Split batch if num_seqs is larger than 100
     batch_size = 100
     all_output_results = []
-    all_seq_likelihood = []
     
     for batch_start in range(0, args.num_seqs, batch_size):
         batch_end = min(batch_start + batch_size, args.num_seqs)
@@ -177,14 +181,13 @@ def generate(args, proteinmpnn_alpha_logits=None, proteinmpnn_beta_logits=None):
         
         output_results = [''.join(seq.split(' ')) for seq in Trainer.tokenizer.batch_decode(output_tokens, remove_special_tokens=True)]
         all_output_results.extend(output_results)
-        all_seq_likelihood.extend(output_scores.sum(dim=-1).tolist())
     
     os.makedirs(args.saveto, exist_ok=True)
     saveto_name = os.path.join(args.saveto, f"{args.peptide}_{args.mhc.replace('/','-')}_{args.trav.replace('/','-')}_{args.trbv.replace('/','-')}_iter_{max_iter}_L_{args.alpha_seq_len}_{args.beta_seq_len}.fasta")
     
     fp_save = open(saveto_name, 'w')
     for idx, seq in enumerate(all_output_results):
-        fp_save.write(f">SEQUENCE_{idx} | log_likelihood: {all_seq_likelihood[idx]:.2f}\n")
+        fp_save.write(f">SEQUENCE_{idx}\n")
         fp_save.write(f"{seq}\n")
     fp_save.close()
 

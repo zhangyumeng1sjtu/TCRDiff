@@ -34,7 +34,7 @@ class ConditionalTCRDPLMTrainer(BaseTrainer):
         self.temperature = config.training.temperature
         self.sampling_strategy = config.training.sampling_strategy
         self.partial_chain_prob = config.training.partial_chain_prob
-        self.partial_cdr12_prob = config.training.partial_cdr12_prob if config.training.partial_cdr12_prob is not None else 0.0
+        # self.partial_cdr12_prob = config.training.partial_cdr12_prob if config.training.partial_cdr12_prob is not None else 0.0
         
         # self.optimizer, self.scheduler = self.configure_optimizer(self.model.parameters(), config.training)
         
@@ -103,10 +103,10 @@ class ConditionalTCRDPLMTrainer(BaseTrainer):
         else:
             partial_masks = None
 
-        if self.partial_cdr12_prob > 0:
-            batch['cdr12_alpha_feat'], batch['cdr12_beta_feat'], _ = self.mask_partial_cdr12_feature(
-                batch['cdr12_alpha_feat'], batch['cdr12_beta_feat'], mask_prob=self.partial_cdr12_prob
-            )
+        # if self.partial_cdr12_prob > 0:
+        #     batch['cdr12_alpha_feat'], batch['cdr12_beta_feat'], _ = self.mask_partial_cdr12_feature(
+        #         batch['cdr12_alpha_feat'], batch['cdr12_beta_feat'], mask_prob=self.partial_cdr12_prob
+        #     )
         
         logits, target, loss_mask, weights = self.model(batch, weighting=self.timestep_weighting, partial_masks=partial_masks)
         

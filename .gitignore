@@ -1,4 +1,4 @@
-data/*
-logs/*
+data
+logs
 __pycache__/
 .codex

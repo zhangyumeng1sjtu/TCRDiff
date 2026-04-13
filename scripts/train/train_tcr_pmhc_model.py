@@ -7,6 +7,11 @@ from torchinfo import summary
 import pandas as pd
 import numpy as np
 
+import sys
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+    
 from TCRDiff.utils import set_seed, load_config
 from TCRDiff.dataset import TCRpMHCDataset, TCRpMHCBatchConverter, TCRpMHCSamplingBatchConverter
 from TCRDiff.trainer import TCRpMHCBindingTrainer, TCRpMHCCoembeddingTrainer

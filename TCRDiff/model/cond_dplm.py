@@ -485,6 +485,9 @@ class ConditionalDPLM(nn.Module):
     def forward_decoder(self, prev_decoder_out, encoder_out, chain_token_mask, cdr12_alpha_feat, cdr12_beta_feat, partial_masks=None, sampling_strategy='gumbel_argmax'):
         
         output_tokens = prev_decoder_out['output_tokens'].clone()
+        # output_scores is a per-position cache of the score from the most recent
+        # accepted update for that token. It is not a cumulative sequence score.
+        # Positions that were never regenerated keep their initialized score 0.
         output_scores = prev_decoder_out['output_scores'].clone()
         step, max_step = prev_decoder_out['step'], prev_decoder_out['max_step']
         temperature = prev_decoder_out['temperature']
