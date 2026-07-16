@@ -42,7 +42,7 @@ The following data and model checkpoints are available at [Zenodo](https://doi.o
 
 #### Design antigen-specific TCR
 
-Try the demo to generate  MAGE-A3-epitope (EVDPIGHLY) specific TCRs (CDR3), predict their binding probabilities, and filter the results..
+Try the demo in `scripts/design/` to generate MAGE-A3-epitope (EVDPIGHLY) specific TCRs (CDR3), predict their binding probabilities, and filter the results.
 
 ```Shell
 ./scripts/design/generate_cdr3.sh
