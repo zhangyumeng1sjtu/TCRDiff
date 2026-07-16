@@ -6,6 +6,7 @@ import pandas as pd
 import pickle
 import json
 import torch.nn.functional as F
+from tqdm import tqdm
 
 import sys
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -38,13 +39,13 @@ def extract_cdr12_seq(v_gene, organism, v_gene_library):
         if isinstance(v_gene, str):
             if v_gene == '':
                 return np.nan, np.nan
-            
+
             if len(v_gene.split('*')) == 1:
                 v_gene = v_gene + '*01'
                 
             gene_df = v_gene_library[organism]
             assert v_gene in gene_df['id'].values # 
-            
+
             cdrs = gene_df[gene_df['id'] == v_gene]['cdrs'].values[0]
             cdr1, cdr2 = cdrs.split(';')[0], cdrs.split(';')[1]
             return cdr1.replace('.', ''), cdr2.replace('.', '')
@@ -161,26 +162,27 @@ def generate(args, proteinmpnn_alpha_logits=None, proteinmpnn_beta_logits=None):
     # Split batch if num_seqs is larger than 100
     batch_size = 100
     all_output_results = []
-    
-    for batch_start in range(0, args.num_seqs, batch_size):
-        batch_end = min(batch_start + batch_size, args.num_seqs)
-        current_num_seqs = batch_end - batch_start
-        
-        # Create a temporary args object with the current batch size
-        temp_args = type('Args', (), {})()
-        for attr in dir(args):
-            if not attr.startswith('_'):
-                setattr(temp_args, attr, getattr(args, attr))
-        temp_args.num_seqs = current_num_seqs
-        
-        batch = prepare_input_batch(temp_args, args.alpha_seq_len, args.beta_seq_len, device, alpha_seq=args.alpha_seq, beta_seq=args.beta_seq, 
-                                  proteinmpnn_alpha_logits=proteinmpnn_alpha_logits, proteinmpnn_beta_logits=proteinmpnn_beta_logits)
-        
-        outputs = Trainer.forward(batch, max_iter, args.sampling_strategy, args.temperature, partial_masks=batch['partial_mask'])
-        output_tokens, output_scores = outputs
-        
-        output_results = [''.join(seq.split(' ')) for seq in Trainer.tokenizer.batch_decode(output_tokens, remove_special_tokens=True)]
-        all_output_results.extend(output_results)
+
+    with tqdm(total=args.num_seqs, desc='Generating TCRs', unit='seq') as progress:
+        for batch_start in range(0, args.num_seqs, batch_size):
+            batch_end = min(batch_start + batch_size, args.num_seqs)
+            current_num_seqs = batch_end - batch_start
+
+            # Create a temporary args object with the current batch size
+            temp_args = type('Args', (), {})()
+            for attr in dir(args):
+                if not attr.startswith('_'):
+                    setattr(temp_args, attr, getattr(args, attr))
+            temp_args.num_seqs = current_num_seqs
+            batch = prepare_input_batch(temp_args, args.alpha_seq_len, args.beta_seq_len, device, alpha_seq=args.alpha_seq, beta_seq=args.beta_seq,
+                                      proteinmpnn_alpha_logits=proteinmpnn_alpha_logits, proteinmpnn_beta_logits=proteinmpnn_beta_logits)
+
+            outputs = Trainer.forward(batch, max_iter, args.sampling_strategy, args.temperature, partial_masks=batch['partial_mask'])
+            output_tokens, output_scores = outputs
+
+            output_results = [''.join(seq.split(' ')) for seq in Trainer.tokenizer.batch_decode(output_tokens, remove_special_tokens=True)]
+            all_output_results.extend(output_results)
+            progress.update(len(output_results))
     
     os.makedirs(args.saveto, exist_ok=True)
     saveto_name = os.path.join(args.saveto, f"{args.peptide}_{args.mhc.replace('/','-')}_{args.trav.replace('/','-')}_{args.trbv.replace('/','-')}_iter_{max_iter}_L_{args.alpha_seq_len}_{args.beta_seq_len}.fasta")

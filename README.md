@@ -45,9 +45,9 @@ The following data and model checkpoints are available at [Zenodo](https://doi.o
 Try the demo in `scripts/design/` to generate MAGE-A3-epitope (EVDPIGHLY) specific TCRs (CDR3), predict their binding probabilities, and filter the results.
 
 ```Shell
-./scripts/design/generate_cdr3.sh
-python scripts/design/prepare_binding_inputs.py
-./scripts/design/predict_binding.sh
+./scripts/design/generate_cdr3.sh # ~10s
+python scripts/design/prepare_binding_inputs.py # ~1s
+./scripts/design/predict_binding.sh # ~20s
 ```
 
 Now you can find the generated TCRs and binding prediction results in `design_pipeline/`.
