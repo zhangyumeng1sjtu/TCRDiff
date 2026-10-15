@@ -14,7 +14,7 @@ TCRDiff generates antigen-specific TCRs conditioned on peptide-MHC targets and g
    git clone https://github.com/zhangyumeng1sjtu/TCRDiff.git
    cd TCRDiff/
    ```
-2. Create a virtual environment by conda
+2. Create a virtual environment with conda
 
    ```Shell
    conda create -n tcrdiff_env python=3.12.2
@@ -35,8 +35,8 @@ The following data and model checkpoints are available at [Zenodo](https://doi.o
 - `data/pmhc`: pre-trained peptide-MHC binding data and MHC sequences.
 - `data/tcr`: pre-trained TCRs in T-cell repertoires.
 - `data/tcrpmhc`: TCR-pMHC recognition dataset.
-- `logs/tcr-pmhc-binding-subsample-2/`: checkponits of TCRDiff binding predictor.
-- `logs/tcr-pmhc-cond-dplm-cross-attn-finetune-tcr-dplm-all-constant/`: checkponits of TCRDiff generative model.
+- `logs/tcr-pmhc-binding-subsample-2/`: checkpoints of TCRDiff binding predictor.
+- `logs/tcr-pmhc-cond-dplm-cross-attn-finetune-tcr-dplm-all-constant/`: checkpoints of TCRDiff generative model.
 
 ### Usage
 
@@ -52,7 +52,7 @@ python scripts/design/prepare_binding_inputs.py # ~1s
 
 Now you can find the generated TCRs and binding prediction results in `design_pipeline/`.
 
-Finally, you can filter the generated TCRs based on the predicted binding rank percentiles for further investigation as in `scripts/design/MAGE_A3_analysis.ipynb`.
+Finally, you can filter the generated TCRs based on the predicted binding rank percentiles for further investigation, as in `scripts/design/MAGE_A3_analysis.ipynb`.
 
 | ID  | CDR3A           | CDR3B         | Peptide   | MHC | TRAV      | TRBV       | Organism | Pred     | On target percentile | Off target percentile |
 | --- | --------------- | ------------- | --------- | --- | --------- | ---------- | -------- | -------- | -------------------- | --------------------- |
@@ -70,7 +70,7 @@ Finally, you can filter the generated TCRs based on the predicted binding rank p
 
 In  summary, the design pipeline consists of these steps:
 
-- Condaitional generation of CDR3 sequences
+- Conditional generation of CDR3 sequences
 
   ```Shell
   python scripts/generate/generate_pmhc_binding_tcr.py \
@@ -79,24 +79,24 @@ In  summary, the design pipeline consists of these steps:
       --alpha_seq_len <cdr3_alpha_len> \ # e.g., 15
       --beta_seq_len <cdr3_beta_len> \ # e.g., 13
       --peptide <peptide_seq> \ # e.g., EVDPIGHLY
-      --mhc <mhc> \ # e.g.m HLA-A\*01:01
+      --mhc <mhc> \ # e.g., HLA-A\*01:01
       --mhca <mhc_alpha> \ # e.g., A\*01:01
       --mhcb <mhc_beta> \ # e.g., b2m
       --trav <trav_gene> \ # e.g., TRAV21\*01
       --trbv <trbv_gene> \ # e.g., TRBV5-1\*01
-      --organism <oragnism> \ # human or mouse
+      --organism <organism> \ # human or mouse
       --temperature <sampling_temperature> \ # e.g., 0.1
       --sampling_strategy gumbel_argmax \
       --max_iter <sampling_itermations> \ # e.g., 10
       --gpu_device <gpu_device_num> \
       --saveto <output_path>
   ```
-- Preprare inputs for binding prediction of the generated TCRs
+- Prepare inputs for binding prediction of the generated TCRs
 
-  Refer to `scripts/design/prepare_binding_inputs.py`, use your peptide-MHC (Optional: off-target peptide), V-gene, and generated outputs instead.
-- Predict binding probabilites and rank percentiles to filter TCR designs
+  Refer to `scripts/design/prepare_binding_inputs.py`; use your peptide-MHC (Optional: off-target peptide), V-gene, and generated outputs instead.
+- Predict binding probabilities and rank percentiles to filter TCR designs
 
-  Refer to `scripts/design/predict_binding.sh` and `scripts/design/MAGE_A3_analysis.ipynb`, use your customized binding prediction inputs/outputs, off-target peptide, and binding rank threshold instead.
+  Refer to `scripts/design/predict_binding.sh` and `scripts/design/MAGE_A3_analysis.ipynb`; use your customized binding prediction inputs/outputs, off-target peptide, and binding rank threshold instead.
 
 #### Train TCRDiff from scratch
 
