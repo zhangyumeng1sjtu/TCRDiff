@@ -38,7 +38,7 @@ class ConditionalTCRDPLMTrainer(BaseTrainer):
         
         # self.optimizer, self.scheduler = self.configure_optimizer(self.model.parameters(), config.training)
         
-        # unfreeze the top tcr transformer layer
+        # unfreeze the tcr transformer
         param_finetune_list = []
         param_default_list = []
         for name, param in self.model.named_parameters():

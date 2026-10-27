@@ -19,6 +19,11 @@ def main(args):
     # load config
     config_path = args.config
     config = load_config(config_path)
+    if args.model_name == 'coembedding' and 'coembedding' not in config.model:
+        raise ValueError(
+            "The coembedding baseline requires model.coembedding in its original training config. "
+            "Use the config saved with that baseline checkpoint."
+        )
     config.training.gpu_device = args.gpu_device
     model_location = args.model_location if args.model_location is not None else os.path.join(config.training.log_dir, 'checkpoint.pt')
     
@@ -35,8 +40,8 @@ def main(args):
         max_mhc_len=config.data.max_mhc_len
     ) 
     
-    Trainer = TCRpMHCBindingTrainer(config)
-    # Trainer = TCRpMHCCoembeddingTrainer(config)
+    trainer_class = TCRpMHCBindingTrainer if args.model_name == 'pairformer' else TCRpMHCCoembeddingTrainer
+    Trainer = trainer_class(config)
 
     print(f'Test data size: {len(test_data)}')
     test_loader = DataLoader(
@@ -110,6 +115,8 @@ def main(args):
 if __name__ == '__main__':
     parser = ArgumentParser()
 
+    parser.add_argument('--model_name', choices=['pairformer', 'coembedding'], default='pairformer',
+                        help='Binding architecture; use the config and weights trained for this model.')
     parser.add_argument('--config', type=str, default='configs/config-train-tcr-pmhc-model.yml')
     parser.add_argument('--model_location', type=str, default=None)
     parser.add_argument('--input_data_path', type=str, required=True)

@@ -20,7 +20,7 @@ training:
   temperature: 0.1 # use lower temperature for gumbel argmax later
   sampling_strategy:  argmax # gumbel_argmax
   timestep_weighting: constant # linear
-  partial_chain_prob: 0.4
+  partial_chain_prob: 0.2
 
 model:
   tcr_model:

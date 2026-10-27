@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 import os
+import shutil
 
 from torch.utils.data import DataLoader
 from torchinfo import summary
@@ -21,7 +22,10 @@ def main(args):
 
     if not os.path.exists(config.training.log_dir):
         os.makedirs(config.training.log_dir)
-    os.system(f'cp {args.config} {config.training.log_dir}/config.yml')
+    try:
+        shutil.copyfile(args.config, os.path.join(config.training.log_dir, 'config.yml'))
+    except shutil.SameFileError:
+        pass  # The selected config is already saved in this run directory.
 
     set_seed(config.training.seed)
     

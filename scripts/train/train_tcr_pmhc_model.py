@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 import os
+import shutil
 
 import torch
 from torch.utils.data import DataLoader, WeightedRandomSampler
@@ -21,10 +22,18 @@ def main(args):
     # load config
     config_path = args.config
     config = load_config(config_path)
+    if args.model_name == 'coembedding' and 'coembedding' not in config.model:
+        raise ValueError(
+            "The coembedding baseline requires model.coembedding in its original training config. "
+            "Use the config saved with that baseline checkpoint."
+        )
 
     if not os.path.exists(config.training.log_dir):
         os.makedirs(config.training.log_dir)
-    os.system(f'cp {args.config} {config.training.log_dir}/config.yml')
+    try:
+        shutil.copyfile(args.config, os.path.join(config.training.log_dir, 'config.yml'))
+    except shutil.SameFileError:
+        pass  # The selected config is already saved in this run directory.
 
     set_seed(config.training.seed)
     
@@ -49,8 +58,8 @@ def main(args):
     test_batch_converter = TCRpMHCBatchConverter(max_cdr3_len=config.data.max_cdr3_len,
                                                 max_peptide_len=config.data.max_peptide_len,
                                                 max_mhc_len=config.data.max_mhc_len)
-    Trainer = TCRpMHCBindingTrainer(config)
-    # Trainer = TCRpMHCCoembeddingTrainer(config)
+    trainer_class = TCRpMHCBindingTrainer if args.model_name == 'pairformer' else TCRpMHCCoembeddingTrainer
+    Trainer = trainer_class(config)
     
     if args.checkpoint_path is not None: # load pre-trained tcrpmhc model if provided
         Trainer.model.load_state_dict(torch.load(args.checkpoint_path, map_location='cpu', weights_only=True))
@@ -77,6 +86,8 @@ def main(args):
 if __name__ == '__main__':
     parser = ArgumentParser()
 
+    parser.add_argument('--model_name', choices=['pairformer', 'coembedding'], default='pairformer',
+                        help='Binding architecture; use the config and weights trained for this model.')
     parser.add_argument('--config', type=str, default='configs/config-train-tcr-pmhc-model.yml')
     parser.add_argument('--checkpoint_path', type=str, default=None)
     args = parser.parse_args()

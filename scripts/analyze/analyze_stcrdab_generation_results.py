@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--test_data_path', type=str, default='data/tcrpmhc/STCRDab-22-test-data-rm-dup.csv')
 parser.add_argument('--gen_data_dir', type=str, required=True)
 parser.add_argument('--output_data_path', type=str, required=True)
-parser.add_argument('--mode', type=str, default='max') # max or mean
+parser.add_argument('--mode', type=str, default='mean') # max or mean
 args = parser.parse_args()
 
 df = pd.read_csv(args.test_data_path)

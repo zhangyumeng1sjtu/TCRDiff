@@ -1,4 +1,6 @@
 import argparse
+import os
+import torch
 
 from torch.utils.data import DataLoader
 
@@ -23,7 +25,7 @@ model_location = f"{args.dirname}/checkpoint.pt"
 config = load_config(config_path)
 set_seed(config.training.seed)
 device = torch.device(f"cuda:{args.gpu_device}" if torch.cuda.is_available() else "cpu")
-config.training.gpu_device = device
+config.training.gpu_device = args.gpu_device
 
 val_data = TCRpMHCDataset(data_path="data/tcrpmhc/validation_pos_data.csv",
                            mhc_lib_path="data/pmhc/mhc_lib.json",

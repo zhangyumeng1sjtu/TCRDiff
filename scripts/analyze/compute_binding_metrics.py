@@ -1,4 +1,5 @@
 import argparse
+import os
 
 import torch
 import pandas as pd
@@ -20,10 +21,15 @@ from TCRDiff.model import TCRpMHCPairFormer, TCRpMHCCoembeddingPairFormer, TCRpM
 # params
 parser = argparse.ArgumentParser()
 parser.add_argument('--dirname', type=str, required=True)
-parser.add_argument('--model_name', type=str, required=True)
-parser.add_argument('--mhc_class', type=str, required=True) # [i, ii]
+parser.add_argument('--model_name', choices=['pairformer', 'pairformer_cl', 'coembedding'], required=True)
+parser.add_argument('--mhc_class', choices=['i', 'ii'], required=True) # [i, ii]
 parser.add_argument('--gpu_device', type=int, default=0)
+parser.add_argument('--pmhc_struc_feat_path', type=str, default=None,
+                    help='Required when the saved model config enables pMHC structural features.')
 args = parser.parse_args()
+model_name = args.model_name
+dirname = args.dirname
+mhc_class = args.mhc_class
 
 # load config
 config_path = f"{args.dirname}/config.yml"
@@ -32,6 +38,11 @@ model_location = f"{args.dirname}/checkpoint.pt"
 config = load_config(config_path)
 device = torch.device(f"cuda:{args.gpu_device}" if torch.cuda.is_available() else "cpu")
 set_seed(config.training.seed)
+
+# Structural features must match the checkpoint architecture.
+use_pmhc_struc_feat = config.model.get('pairformer', {}).get('use_pmhc_struc_feat', False) if model_name != 'coembedding' else False
+if use_pmhc_struc_feat and args.pmhc_struc_feat_path is None:
+    parser.error('This model requires --pmhc_struc_feat_path.')
 
 # load data
 val_data_path = f"data/tcrpmhc/class_{args.mhc_class}/validation_tcr_pmhc_data_class_{args.mhc_class}.csv"
@@ -44,7 +55,8 @@ val_data = TCRpMHCDataset(data_path=val_data_path,
 batch_converter = TCRpMHCBatchConverter(max_cdr3_len=config.data.max_cdr3_len,
                                         max_peptide_len=config.data.max_peptide_len,
                                         max_mhc_len=config.data.max_mhc_len,
-                                        use_pmhc_struc_feat=True
+                                        use_pmhc_struc_feat=use_pmhc_struc_feat,
+                                        pmhc_struc_feat_path=args.pmhc_struc_feat_path
 )
 val_loader = DataLoader(val_data, batch_size=config.training.test_batch_size, collate_fn=batch_converter, num_workers=config.training.num_workers, shuffle=False)
 

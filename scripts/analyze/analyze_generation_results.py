@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--test_data_path', type=str, default='data/tcrpmhc/immrep23_test_pos_data.csv')
 parser.add_argument('--gen_data_dir', type=str, required=True)
 parser.add_argument('--output_data_path', type=str, required=True)
-parser.add_argument('--mode', type=str, default='max') # max or mean
+parser.add_argument('--mode', type=str, default='mean') # max or mean
 args = parser.parse_args()
 
 blosum62 = substitution_matrices.load("BLOSUM62")
