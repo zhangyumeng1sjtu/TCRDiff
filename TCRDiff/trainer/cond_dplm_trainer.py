@@ -23,6 +23,12 @@ class ConditionalTCRDPLMTrainer(BaseTrainer):
             # self.model.load_pretrained_weights(config.training.pretrained_pmhc_model, config.training.pretrained_tcr_model)
             self.model.load_pretrained_weights(config.training.pretrained_model) # load pretrained weights
             
+        # Apply after loading: the checkpoint loader unfreezes the TCR network.
+        if config.training.get('freeze_tcr_dplm', False):
+            if config.training.pretrained_model is None:
+                raise ValueError("freeze_tcr_dplm requires training.pretrained_model")
+            self.model.decoder.tcr_model.requires_grad_(False)
+
         self.model.to(self.device)
         
         # configure criterion
@@ -38,10 +44,12 @@ class ConditionalTCRDPLMTrainer(BaseTrainer):
         
         # self.optimizer, self.scheduler = self.configure_optimizer(self.model.parameters(), config.training)
         
-        # unfreeze the tcr transformer
+        # Group trainable backbone and adapter parameters by learning rate.
         param_finetune_list = []
         param_default_list = []
         for name, param in self.model.named_parameters():
+            if not param.requires_grad:
+                continue
             if name.startswith('decoder.tcr_model'):
                 param_finetune_list.append(param)
             elif name.startswith('encoder'):
@@ -229,7 +237,7 @@ class ConditionalTCRDPLMTrainer(BaseTrainer):
         print(f'Test Loss: {test_res["loss"]:.3f} | NLL Loss: {test_res["nll_loss"]:.3f} | Perplexity: {test_res["ppl"]:.2f} | ACC: {test_res["acc"]*100:.2f}%')
         
     # Inference/Generation
-    def forward(self, batch, max_iter, sampling_strategy, temperature=1.0, partial_masks = None, use_draft_seq=False, decode_seq=False):
+    def forward(self, batch, max_iter, sampling_strategy, temperature=1.0, partial_masks = None, use_draft_seq=False, decode_seq=False, decoding_strategy='reparam-uncond-deterministic-linear'):
         output_tokens, output_scores = self.model.generate(
             batch = batch,
             max_iter = max_iter,
@@ -237,6 +245,7 @@ class ConditionalTCRDPLMTrainer(BaseTrainer):
             temperature = temperature,
             partial_masks = partial_masks,
             use_draft_seq = use_draft_seq,
+            decoding_strategy = decoding_strategy,
         )
         if decode_seq:
             return [''.join(seq.split(' ')) for seq in self.tokenizer.batch_decode(output_tokens, remove_special_tokens=True)]
@@ -365,7 +374,7 @@ class ConditionalTCRDPLMTrainer(BaseTrainer):
             'per_sample_beta_accuracy': per_sample_beta_accuracy
         }
         
-    def predict_step(self, batch, noise='random_mask', max_iter=100):
+    def predict_step(self, batch, noise='random_mask', max_iter=100, decoding_strategy='reparam-uncond-deterministic-linear'):
         # inject noise on the input cdr3 tokens
         cdr3_tokens = batch['cdr3_token']
         partial_masks = None
@@ -379,7 +388,7 @@ class ConditionalTCRDPLMTrainer(BaseTrainer):
             batch['cdr3_token'], batch['cdr3_mask'] = self.inject_noise(cdr3_tokens, noise)
             partial_masks = None
 
-        pred_tokens, pred_scores = self.forward(batch, max_iter, self.sampling_strategy, temperature=self.temperature, use_draft_seq=True, decode_seq=False, partial_masks=partial_masks)
+        pred_tokens, pred_scores = self.forward(batch, max_iter, self.sampling_strategy, temperature=self.temperature, use_draft_seq=True, decode_seq=False, partial_masks=partial_masks, decoding_strategy=decoding_strategy)
         
         special_sym_mask = (
                 cdr3_tokens.eq(self.tokenizer.padding_idx) |
@@ -420,7 +429,7 @@ class ConditionalTCRDPLMTrainer(BaseTrainer):
         
         return result
     
-    def predict(self, predict_loader, model_location=None, noise='random_mask'):
+    def predict(self, predict_loader, model_location=None, noise='random_mask', decoding_strategy='reparam-uncond-deterministic-linear'):
         avg_acc = 0
         avg_alpha_acc = 0
         avg_beta_acc = 0
@@ -440,7 +449,7 @@ class ConditionalTCRDPLMTrainer(BaseTrainer):
                 for key, value in batch.items():
                     batch[key] = value.to(self.device)
                 
-                logging_output = self.predict_step(batch, noise, max_iter=self.max_iter)
+                logging_output = self.predict_step(batch, noise, max_iter=self.max_iter, decoding_strategy=decoding_strategy)
 
                 num_samples = logging_output['mask_size'].cpu().item()
                 avg_acc += logging_output['accuracy'].cpu().item() * num_samples

@@ -15,7 +15,8 @@ if PROJECT_ROOT not in sys.path:
 
 from TCRDiff.trainer import ConditionalTCRDPLMTrainer
 from TCRDiff.utils import set_seed, load_config
-from TCRDiff.utils.encoding import paired_cdr3_batch_encoding, paired_cdr12_batch_encoding, mhc_allele_to_seq, peptide_batch_encoding, mhc_encoding, pmhc_struc_feat_batch_encoding
+from TCRDiff.utils.cdr12 import CDR12FeatureEncoder
+from TCRDiff.utils.encoding import paired_cdr3_batch_encoding, mhc_allele_to_seq, peptide_batch_encoding, mhc_encoding, pmhc_struc_feat_batch_encoding
 from TCRDiff.utils.tokenizer import PairCDR3Tokenizer, PeptideTokenizer
 
 
@@ -53,7 +54,7 @@ def extract_cdr12_seq(v_gene, organism, v_gene_library):
             return np.nan, np.nan
 
 
-def prepare_input_batch(args, alpha_length, beta_length, device, alpha_seq=None, beta_seq=None, proteinmpnn_alpha_logits=None, proteinmpnn_beta_logits=None):
+def prepare_input_batch(args, alpha_length, beta_length, device, alpha_seq=None, beta_seq=None, proteinmpnn_alpha_logits=None, proteinmpnn_beta_logits=None, cdr12_encoder=None):
     tcr_tokenizer = PairCDR3Tokenizer()
     pep_tokenizer = PeptideTokenizer()
     
@@ -99,7 +100,9 @@ def prepare_input_batch(args, alpha_length, beta_length, device, alpha_seq=None,
     
     # transform input tcr and pmhc features
     cdr3_tokens, chain_token_mask = paired_cdr3_batch_encoding(init_batch, tcr_tokenizer, 25)
-    cdr12_feat_alpha, cdr12_feat_beta = paired_cdr12_batch_encoding(init_batch)
+    if cdr12_encoder is None:
+        cdr12_encoder = CDR12FeatureEncoder()
+    cdr12_feat_alpha, cdr12_feat_beta = cdr12_encoder(init_batch)
     
     # Create partial mask for standard amino acid tokens
     partial_mask = torch.zeros_like(cdr3_tokens, dtype=torch.bool)
@@ -149,6 +152,7 @@ def generate(args, proteinmpnn_alpha_logits=None, proteinmpnn_beta_logits=None):
     config_path = args.config
     config = load_config(config_path)
     set_seed(config.training.seed)
+    cdr12_encoder = CDR12FeatureEncoder.from_config(config.model.tcr_model)
     
     device = torch.device(f"cuda:{args.gpu_device}" if torch.cuda.is_available() else "cpu")
     config.training.gpu_device = args.gpu_device
@@ -175,9 +179,13 @@ def generate(args, proteinmpnn_alpha_logits=None, proteinmpnn_beta_logits=None):
                     setattr(temp_args, attr, getattr(args, attr))
             temp_args.num_seqs = current_num_seqs
             batch = prepare_input_batch(temp_args, args.alpha_seq_len, args.beta_seq_len, device, alpha_seq=args.alpha_seq, beta_seq=args.beta_seq,
-                                      proteinmpnn_alpha_logits=proteinmpnn_alpha_logits, proteinmpnn_beta_logits=proteinmpnn_beta_logits)
+                                      proteinmpnn_alpha_logits=proteinmpnn_alpha_logits, proteinmpnn_beta_logits=proteinmpnn_beta_logits,
+                                      cdr12_encoder=cdr12_encoder)
 
-            outputs = Trainer.forward(batch, max_iter, args.sampling_strategy, args.temperature, partial_masks=batch['partial_mask'])
+            outputs = Trainer.forward(
+                batch, max_iter, args.sampling_strategy, args.temperature,
+                partial_masks=batch['partial_mask'], decoding_strategy=args.decoding_strategy,
+            )
             output_tokens, output_scores = outputs
 
             output_results = [''.join(seq.split(' ')) for seq in Trainer.tokenizer.batch_decode(output_tokens, remove_special_tokens=True)]
@@ -221,6 +229,8 @@ if __name__ == '__main__':
     parser.add_argument('--saveto', type=str, default='gen.fasta')
     parser.add_argument('--temperature', type=float, default=1.0)
     parser.add_argument('--sampling_strategy', type=str, default='gumbel_argmax')
+    parser.add_argument('--decoding_strategy', type=str, default='reparam-uncond-deterministic-linear',
+                        help='Reparameterized decoding strategy, e.g. reparam-uncond-deterministic-cosine')
     parser.add_argument('--max_iter', type=int, default=10)
     
     parser.add_argument('--gpu_device', type=int, default=0)

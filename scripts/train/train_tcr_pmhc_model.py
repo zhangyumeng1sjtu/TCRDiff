@@ -13,6 +13,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
     
+from TCRDiff.utils.cdr12 import cdr12_converter_kwargs
 from TCRDiff.utils import set_seed, load_config
 from TCRDiff.dataset import TCRpMHCDataset, TCRpMHCBatchConverter, TCRpMHCSamplingBatchConverter
 from TCRDiff.trainer import TCRpMHCBindingTrainer, TCRpMHCCoembeddingTrainer
@@ -42,6 +43,7 @@ def main(args):
     test_data = TCRpMHCDataset(config.data.test_data_path, config.data.mhc_lib_path, config.data.v_gene_lib_path, use_cdr12_columns=True, include_target=True)
     
     train_batch_converter = TCRpMHCSamplingBatchConverter(
+        **cdr12_converter_kwargs(config.model.tcr_model),
         human_bg_tcr_path=config.data.human_bg_tcr_path,
         mouse_bg_tcr_path=config.data.mouse_bg_tcr_path,
         binding_matrix_path=config.data.binding_matrix_path,
@@ -52,12 +54,15 @@ def main(args):
         max_mhc_len=config.data.max_mhc_len,
         cdr12_encoding=True,
         sample_bg_neg_ratio=config.data.sample_bg_neg_ratio,
-        sample_shuffle_neg_ratio=config.data.sample_shuffle_neg_ratio
+        sample_shuffle_neg_ratio=config.data.sample_shuffle_neg_ratio,
     )
     
-    test_batch_converter = TCRpMHCBatchConverter(max_cdr3_len=config.data.max_cdr3_len,
-                                                max_peptide_len=config.data.max_peptide_len,
-                                                max_mhc_len=config.data.max_mhc_len)
+    test_batch_converter = TCRpMHCBatchConverter(
+        **cdr12_converter_kwargs(config.model.tcr_model),
+        max_cdr3_len=config.data.max_cdr3_len,
+        max_peptide_len=config.data.max_peptide_len,
+        max_mhc_len=config.data.max_mhc_len,
+    )
     trainer_class = TCRpMHCBindingTrainer if args.model_name == 'pairformer' else TCRpMHCCoembeddingTrainer
     Trainer = trainer_class(config)
     

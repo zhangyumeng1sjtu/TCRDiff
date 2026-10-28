@@ -1,3 +1,4 @@
+from ..utils.cdr12 import DEFAULT_ESM2_MODEL, cdr12_feature_dim
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -108,6 +109,9 @@ class TCRLM(nn.Module):
         tokenizer = PairCDR3Tokenizer(),
         use_cdr12_features = True,
         use_timestep_embedding = False,
+        cdr12_feature_encoding = "atchley",
+        cdr12_esm2_model = DEFAULT_ESM2_MODEL,
+        cdr12_esm2_features_path = None, # consumed by the batch converter
     ):
         super().__init__()
         
@@ -119,6 +123,7 @@ class TCRLM(nn.Module):
         self.dropout_prob = dropout
         self.max_seq_len = max_seq_len
         self.use_cdr12_features = use_cdr12_features
+        self.cdr12_feature_dim = cdr12_feature_dim(cdr12_feature_encoding, cdr12_esm2_model)
         self.use_timestep_embedding = use_timestep_embedding
         
         self.transformer_layer_fn = TransformerLayerWithAdaLN if use_cdr12_features else TransformerLayer
@@ -172,8 +177,8 @@ class TCRLM(nn.Module):
         )
         
         if self.use_cdr12_features:
-            self.cdr12_alpha_encoder = ConvEncoder(5, self.dim // 2, max_seq_len=16)
-            self.cdr12_beta_encoder = ConvEncoder(5, self.dim // 2, max_seq_len=13)
+            self.cdr12_alpha_encoder = ConvEncoder(self.cdr12_feature_dim, self.dim // 2, max_seq_len=16)
+            self.cdr12_beta_encoder = ConvEncoder(self.cdr12_feature_dim, self.dim // 2, max_seq_len=13)
                 
         self.lm_head = LMHead(
             embed_dim = self.dim,
@@ -346,7 +351,7 @@ class TCRDPLM(nn.Module):
             tokens = batch['cdr3_token']
             output_mask = self.get_non_special_sym_mask(tokens, partial_masks=partial_masks)
 
-            output_tokens = tokens.masked_fill(output_mask, self.mask_id)
+            output_tokens = tokens.masked_fill(output_mask, self.mask_idx)
             output_scores = torch.zeros_like(output_tokens, dtype=torch.float)
 
             return output_tokens, output_scores

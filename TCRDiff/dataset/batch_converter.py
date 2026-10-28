@@ -1,3 +1,4 @@
+from ..utils.cdr12 import CDR12FeatureEncoder, DEFAULT_ESM2_MODEL
 from typing import Sequence
 import numpy as np
 import pandas as pd
@@ -6,7 +7,7 @@ import random
 import pickle
 
 from ..utils.tokenizer import PeptideTokenizer, PairCDR3Tokenizer
-from ..utils.encoding import peptide_batch_encoding, paired_cdr3_batch_encoding, paired_cdr12_batch_encoding, mhc_encoding, pmhc_struc_feat_batch_encoding
+from ..utils.encoding import peptide_batch_encoding, paired_cdr3_batch_encoding, mhc_encoding, pmhc_struc_feat_batch_encoding
 
 
 MH1_PSEUDO_POS = [6, 8, 23, 44, 58, 61, 62, 65, 66, 68, 69, 72, 73, 75, 76, 79, 80,
@@ -49,10 +50,11 @@ class PeptideBatchConverter(object):
 
 class TCRBatchConverter(object):
     
-    def __init__(self, max_cdr3_len=25, cdr12_encoding=True, drop_chain_prob=0.4):
+    def __init__(self, max_cdr3_len=25, cdr12_encoding=True, drop_chain_prob=0.4, cdr12_feature_encoding="atchley", cdr12_esm2_model=DEFAULT_ESM2_MODEL, cdr12_esm2_features_path=None):
         self.tokenizer = PairCDR3Tokenizer()
         self.max_cdr3_len = max_cdr3_len
         self.cdr12_encoding = cdr12_encoding
+        self.cdr12_encoder = CDR12FeatureEncoder(cdr12_feature_encoding, cdr12_esm2_model, cdr12_esm2_features_path)
         self.drop_chain_prob = drop_chain_prob
            
     def drop_tcr_chain(self, batch, drop_prob):
@@ -103,7 +105,7 @@ class TCRBatchConverter(object):
         }
         
         if self.cdr12_encoding:
-            cdr12_feat_alpha, cdr12_feat_beta = paired_cdr12_batch_encoding(batch_)
+            cdr12_feat_alpha, cdr12_feat_beta = self.cdr12_encoder(batch_)
             batch['cdr12_alpha_feat'] = cdr12_feat_alpha
             batch['cdr12_beta_feat'] = cdr12_feat_beta
             
@@ -155,7 +157,10 @@ class TCRpMHCBatchConverter(object):
         max_mhc_len=175,
         cdr12_encoding=True,
         use_pmhc_struc_feat=False,
-        pmhc_struc_feat_path=None
+        pmhc_struc_feat_path=None,
+        cdr12_feature_encoding="atchley",
+        cdr12_esm2_model=DEFAULT_ESM2_MODEL,
+        cdr12_esm2_features_path=None
     ):
         self.tcr_tokenizer = PairCDR3Tokenizer()
         self.pep_tokenizer = PeptideTokenizer()
@@ -164,6 +169,7 @@ class TCRpMHCBatchConverter(object):
         self.max_peptide_len = max_peptide_len
         self.max_mhc_len = max_mhc_len
         self.cdr12_encoding = cdr12_encoding
+        self.cdr12_encoder = CDR12FeatureEncoder(cdr12_feature_encoding, cdr12_esm2_model, cdr12_esm2_features_path)
         self.use_pmhc_struc_feat = use_pmhc_struc_feat
 
         # use pmhc structural features
@@ -184,7 +190,7 @@ class TCRpMHCBatchConverter(object):
         }
         
         if self.cdr12_encoding:
-            cdr12_feat_alpha, cdr12_feat_beta = paired_cdr12_batch_encoding(raw_batch)
+            cdr12_feat_alpha, cdr12_feat_beta = self.cdr12_encoder(raw_batch)
             batch['cdr12_alpha_feat'] = cdr12_feat_alpha
             batch['cdr12_beta_feat'] = cdr12_feat_beta
         
@@ -231,7 +237,10 @@ class TCRpMHCSamplingBatchConverter(object):
         use_pmhc_struc_feat=False,
         pmhc_struc_feat_path=None,
         sample_bg_neg_ratio=2,
-        sample_shuffle_neg_ratio=3
+        sample_shuffle_neg_ratio=3,
+        cdr12_feature_encoding="atchley",
+        cdr12_esm2_model=DEFAULT_ESM2_MODEL,
+        cdr12_esm2_features_path=None
     ):
         self.tcr_tokenizer = PairCDR3Tokenizer()
         self.pep_tokenizer = PeptideTokenizer()
@@ -240,6 +249,7 @@ class TCRpMHCSamplingBatchConverter(object):
         self.max_peptide_len = max_peptide_len
         self.max_mhc_len = max_mhc_len
         self.cdr12_encoding = cdr12_encoding
+        self.cdr12_encoder = CDR12FeatureEncoder(cdr12_feature_encoding, cdr12_esm2_model, cdr12_esm2_features_path)
         
         self.mh1_pseudo_pos = MH1_PSEUDO_POS
         self.mh2_pseudo_pos = MH2_PSEUDO_POS
@@ -267,6 +277,7 @@ class TCRpMHCSamplingBatchConverter(object):
     def sample_bg_neg_pairs(self, batch: dict):
         
         batch = pd.DataFrame(batch)
+        batch['_anchor_index'] = np.arange(len(batch))
         
         batch_human = batch[batch['organism'] == 'human']
         batch_mouse = batch[batch['organism'] == 'mouse']
@@ -306,6 +317,7 @@ class TCRpMHCSamplingBatchConverter(object):
     def sample_shuffle_neg_pairs(self, batch: dict):
         
         batch = pd.DataFrame(batch)
+        batch['_anchor_index'] = np.arange(len(batch))
         
         new_batch = []
         for i in range(len(batch)):
@@ -328,13 +340,12 @@ class TCRpMHCSamplingBatchConverter(object):
             else:
                 non_binding_tcrs = non_binding_tcrs[non_binding_tcrs.notna().all(axis=1)]
             
-            # sample non-binding tcrs
-            # make sure number of sampled tcrs is greater than or equal to sample_shuffle_neg_ratio
-            if len(non_binding_tcrs) < self.sample_shuffle_neg_ratio:
-                sampled_non_binding_tcrs = non_binding_tcrs.sample(len(non_binding_tcrs), replace=False).reset_index(drop=True)
-            else:
-                sampled_non_binding_tcrs = non_binding_tcrs.sample(self.sample_shuffle_neg_ratio, replace=False).reset_index(drop=True)
+            # Preserve available negatives when the candidate pool is small.
+            sampled_non_binding_tcrs = non_binding_tcrs.sample(
+                min(len(non_binding_tcrs), self.sample_shuffle_neg_ratio), replace=False
+            ).reset_index(drop=True)
 
+            sampled_non_binding_tcrs['_anchor_index'] = i
             sampled_non_binding_tcrs['peptide'] = peptide
             sampled_non_binding_tcrs['mhc'] = mhc
             sampled_non_binding_tcrs['mhca'] = mhca
@@ -372,7 +383,7 @@ class TCRpMHCSamplingBatchConverter(object):
         }
         
         if self.cdr12_encoding:
-            cdr12_feat_alpha, cdr12_feat_beta = paired_cdr12_batch_encoding(data_list)
+            cdr12_feat_alpha, cdr12_feat_beta = self.cdr12_encoder(data_list)
             batch['cdr12_alpha_feat'] = cdr12_feat_alpha
             batch['cdr12_beta_feat'] = cdr12_feat_beta
     
@@ -395,6 +406,12 @@ class TCRpMHCSamplingBatchConverter(object):
         if self.use_pmhc_struc_feat:
             batch['pmhc_struc_feat'] = pmhc_struc_feat_batch_encoding(data_list, dim=peptide_tokens.shape[1] + 34, feat_dict=self.pmhc_struc_feat_dict) # peptide len + mhc pseudo seq len (34)
         
+        # The two samplers use different row orders; keep explicit ownership.
+        batch['num_positive'] = batch_size
+        batch['negative_anchor_index'] = torch.tensor(
+            bg_negative_data['_anchor_index'] + shuffle_negative_data['_anchor_index'],
+            dtype=torch.long,
+        )
         batch['target'] = torch.tensor(data['target'], dtype=torch.float)
 
         # Optional: set weight for loss function (single chain cdr3a/b is nan)

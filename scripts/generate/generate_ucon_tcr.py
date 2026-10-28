@@ -11,7 +11,8 @@ if PROJECT_ROOT not in sys.path:
 
 from TCRDiff.model import TCRDPLM
 from TCRDiff.utils import set_seed, load_config
-from TCRDiff.utils.encoding import paired_cdr3_batch_encoding, paired_cdr12_batch_encoding
+from TCRDiff.utils.encoding import paired_cdr3_batch_encoding
+from TCRDiff.utils.cdr12 import CDR12FeatureEncoder
 
 
 def extract_cdr12_seq(v_gene, organism, v_gene_library):
@@ -30,7 +31,7 @@ def extract_cdr12_seq(v_gene, organism, v_gene_library):
         return np.nan, np.nan
 
 
-def get_initial(args, alpha_length, beta_length, tokenizer, device):
+def get_initial(args, alpha_length, beta_length, tokenizer, device, cdr12_encoder=None):
     alpha_seq = ['X'] * alpha_length
     beta_seq = ['X'] * beta_length
     if args.cond_chain_seq is not None:
@@ -55,7 +56,9 @@ def get_initial(args, alpha_length, beta_length, tokenizer, device):
         'cdr3_token': cdr3_tokens,
         'chain_token_mask': chain_token_mask,
     }
-    cdr12_feat_alpha, cdr12_feat_beta = paired_cdr12_batch_encoding(init_batch)
+    if cdr12_encoder is None:
+        cdr12_encoder = CDR12FeatureEncoder()
+    cdr12_feat_alpha, cdr12_feat_beta = cdr12_encoder(init_batch)
     batch['cdr12_alpha_feat'] = cdr12_feat_alpha
     batch['cdr12_beta_feat'] = cdr12_feat_beta
     
@@ -80,12 +83,14 @@ def generate(args):
 
     max_iter = args.max_iter
     
-    batch = get_initial(args, args.alpha_seq_len, args.beta_seq_len, tokenizer, device)
+    batch = get_initial(args, args.alpha_seq_len, args.beta_seq_len, tokenizer, device,
+                        cdr12_encoder=CDR12FeatureEncoder.from_config(config.model))
     partial_mask = batch['cdr3_token'].ne(model.mask_idx)
     
     with torch.amp.autocast('cuda'):
         outputs = model.generate(batch=batch, tokenizer=tokenizer,
                                     max_iter=max_iter,
+                                    temperature=args.temperature,
                                     sampling_strategy=args.sampling_strategy,
                                     partial_masks=partial_mask)
     output_tokens = outputs[0]

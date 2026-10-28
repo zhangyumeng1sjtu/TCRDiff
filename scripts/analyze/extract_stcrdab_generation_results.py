@@ -4,9 +4,10 @@ from Bio import SeqIO
 from Bio import pairwise2
 import json
 import numpy as np
+import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--test_data_path', type=str, default='data/tcrpmhc/STCRDab-22-test-data-rm-dup.csv')
+parser.add_argument('--test_data_path', type=str, default='data/tcrpmhc/STCRDab-22-test-data-rm-dup-34.csv')
 parser.add_argument('--gen_data_dir', type=str, required=True)
 parser.add_argument('--output_data_path', type=str, required=True)
 args = parser.parse_args()

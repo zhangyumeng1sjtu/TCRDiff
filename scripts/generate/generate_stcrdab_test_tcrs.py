@@ -1,6 +1,11 @@
 import pandas as pd
 import os
+from argparse import ArgumentParser
 
+
+parser = ArgumentParser()
+parser.add_argument('--decoding_strategy', default='reparam-uncond-deterministic-linear')
+args = parser.parse_args()
 
 df = pd.read_csv('data/tcrpmhc/STCRDab-22-test-data-rm-dup.csv')
 
@@ -35,6 +40,7 @@ for i in range(len(res)):
     --organism {organism} \
     --temperature 0.1 \
     --sampling_strategy argmax \
+    --decoding_strategy {args.decoding_strategy} \
     --max_iter 10 \
     --gpu_device 0 \
     --saveto gen.fasta/stcrdab_argmax_cosine/{pdb}'
@@ -60,4 +66,3 @@ for i in range(len(res)):
     
     print(cmd)
     os.system(cmd)
-    

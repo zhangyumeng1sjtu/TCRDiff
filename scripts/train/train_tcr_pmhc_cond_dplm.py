@@ -13,6 +13,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
     
+from TCRDiff.utils.cdr12 import cdr12_converter_kwargs
 from TCRDiff.utils import set_seed, load_config
 from TCRDiff.dataset import TCRpMHCDataset, TCRpMHCBatchConverter
 from TCRDiff.trainer import ConditionalTCRDPLMTrainer
@@ -36,9 +37,12 @@ def main(args):
     val_data = TCRpMHCDataset(config.data.val_data_path, config.data.mhc_lib_path, config.data.v_gene_lib_path)
     test_data = TCRpMHCDataset(config.data.test_data_path, config.data.mhc_lib_path, config.data.v_gene_lib_path, use_cdr12_columns=True)
     
-    batch_converter = TCRpMHCBatchConverter(max_cdr3_len=config.data.max_cdr3_len,
-                                            max_peptide_len=config.data.max_peptide_len,
-                                            max_mhc_len=config.data.max_mhc_len)
+    batch_converter = TCRpMHCBatchConverter(
+        **cdr12_converter_kwargs(config.model.tcr_model),
+        max_cdr3_len=config.data.max_cdr3_len,
+        max_peptide_len=config.data.max_peptide_len,
+        max_mhc_len=config.data.max_mhc_len,
+    )
     Trainer = ConditionalTCRDPLMTrainer(config)
     
 
@@ -64,8 +68,8 @@ def main(args):
     Trainer.test(test_loader, model_location=os.path.join(config.training.log_dir, 'checkpoint.pt'))
     
     # Test prediction results
-    val_pred = Trainer.predict(val_loader, model_location=os.path.join(config.training.log_dir, 'checkpoint.pt'), noise = 'full_mask')
-    test_pred = Trainer.predict(test_loader, model_location=os.path.join(config.training.log_dir, 'checkpoint.pt'), noise = 'full_mask')
+    val_pred = Trainer.predict(val_loader, model_location=os.path.join(config.training.log_dir, 'checkpoint.pt'), noise = 'full_mask', decoding_strategy=args.decoding_strategy)
+    test_pred = Trainer.predict(test_loader, model_location=os.path.join(config.training.log_dir, 'checkpoint.pt'), noise = 'full_mask', decoding_strategy=args.decoding_strategy)
     
     print(val_pred['accuracy'], val_pred['median_accuracy'])
     print(test_pred['accuracy'], test_pred['median_accuracy'])
@@ -73,6 +77,7 @@ def main(args):
 if __name__ == '__main__':
     parser = ArgumentParser()
 
+    parser.add_argument('--decoding_strategy', default='reparam-uncond-deterministic-linear')
     parser.add_argument('--config', type=str, default='configs/config-train-tcr-pmhc-dplm.yml')
     args = parser.parse_args()
 

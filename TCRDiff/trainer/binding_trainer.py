@@ -252,20 +252,24 @@ class TCRpMHCCoembeddingTrainer(BaseTrainer):
         self.contrastive_loss_coef = config.training.contrastive_loss_coef
         
     @staticmethod
-    def compute_contrastive_loss(anchor, positive, negative, temperature=1.0):
-        """
-            anchor: B, E; positive B, E; negative: 5B, E
-        """
-        logits_pos = F.cosine_similarity(anchor, positive) # B
-        negative = negative.view(-1, 5, anchor.size(1)) # B, 5, E
-        logits_neg = torch.stack([F.cosine_similarity(anchor, neg) for neg in negative.transpose(0, 1)], dim=1) # B, 5
-        
-        numerator = torch.exp(logits_pos / temperature)
-        denominator = numerator + torch.exp(logits_neg / temperature).sum(1)
-        
-        loss = - torch.log(numerator / denominator)
-        return loss.mean()
-    
+    def compute_contrastive_loss(anchor, positive, negative, negative_anchor_index, temperature=1.0):
+        """InfoNCE with explicit negative ownership and variable counts per anchor."""
+        if temperature <= 0:
+            raise ValueError("temperature must be positive")
+        if negative_anchor_index.shape != (negative.size(0),):
+            raise ValueError("Each negative must have exactly one anchor index")
+        logits_pos = F.cosine_similarity(anchor, positive) / temperature
+        # Compare each negative only with its original positive-row anchor.
+        logits_neg = F.cosine_similarity(anchor[negative_anchor_index], negative) / temperature
+        belongs_to = (
+            torch.arange(anchor.size(0), device=anchor.device)[:, None]
+            == negative_anchor_index[None, :]
+        )
+        logits_neg = logits_neg.unsqueeze(0).expand(anchor.size(0), -1)
+        logits_neg = logits_neg.masked_fill(~belongs_to, float('-inf'))
+        denominator = torch.logsumexp(torch.cat([logits_pos[:, None], logits_neg], dim=1), dim=1)
+        return (denominator - logits_pos).mean()
+
     def step(self, batch, training=True):
         for key, value in batch.items():
             if isinstance(value, torch.Tensor):
@@ -278,13 +282,16 @@ class TCRpMHCCoembeddingTrainer(BaseTrainer):
         if training:
             tcr_projections, pmhc_projections = out['projection']
             
-            pos_batch_size = labels.shape[0] // 6
+            pos_batch_size = batch['num_positive']
             anchor_projections = pmhc_projections[:pos_batch_size, :]
             positive_projections = tcr_projections[:pos_batch_size, :]
             negative_projections = tcr_projections[pos_batch_size:, :]
             
             bce_loss = F.binary_cross_entropy(logits, labels)
-            contrastive_loss = self.compute_contrastive_loss(anchor_projections, positive_projections, negative_projections, temperature=self.temperature)
+            contrastive_loss = self.compute_contrastive_loss(
+                anchor_projections, positive_projections, negative_projections,
+                batch['negative_anchor_index'], temperature=self.temperature,
+            )
                 
             loss = bce_loss + self.contrastive_loss_coef * contrastive_loss
             logging_output = {
@@ -441,4 +448,3 @@ class TCRpMHCCoembeddingTrainer(BaseTrainer):
         
         out_dir = self.log_dir if out_dir is None else out_dir
         df.to_csv(os.path.join(out_dir, 'predictions.csv'), index=False)
-        

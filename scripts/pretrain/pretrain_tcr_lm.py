@@ -11,6 +11,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+from TCRDiff.utils.cdr12 import cdr12_converter_kwargs
 from TCRDiff.utils import set_seed, load_config
 from TCRDiff.dataset import TCRDataset, TCRBatchConverter
 from TCRDiff.trainer import TCRMLMTrainer
@@ -35,7 +36,11 @@ def main(args):
     val_data = TCRDataset(config.data.val_data_path)
     test_data = TCRDataset(config.data.test_data_path)
     
-    batch_converter = TCRBatchConverter(max_cdr3_len=config.data.max_cdr3_len, drop_chain_prob=config.data.drop_chain_prob) # maybe not drop chains in validation/test data?
+    batch_converter = TCRBatchConverter(
+        **cdr12_converter_kwargs(config.model),
+        max_cdr3_len=config.data.max_cdr3_len,
+        drop_chain_prob=config.data.drop_chain_prob,
+    ) # maybe not drop chains in validation/test data?
     Trainer = TCRMLMTrainer(config)
 
     print(f'Train data size: {len(train_data)}')

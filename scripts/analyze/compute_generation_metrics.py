@@ -9,6 +9,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
     
+from TCRDiff.utils.cdr12 import cdr12_converter_kwargs
 from TCRDiff.utils import set_seed, load_config
 from TCRDiff.dataset import TCRpMHCDataset, TCRpMHCBatchConverter, TCRDataset, TCRBatchConverter
 from TCRDiff.trainer import ConditionalTCRDPLMTrainer, TCRDPLMTrainer
@@ -39,7 +40,12 @@ test_data = TCRpMHCDataset(data_path="data/tcrpmhc/subsample/immrep23_test_pos_d
                            use_cdr12_columns=True
 )
 
-batch_converter = TCRpMHCBatchConverter(max_cdr3_len=config.data.max_cdr3_len, max_peptide_len=config.data.max_peptide_len, max_mhc_len=config.data.max_mhc_len) 
+batch_converter = TCRpMHCBatchConverter(
+    **cdr12_converter_kwargs(config.model.tcr_model),
+    max_cdr3_len=config.data.max_cdr3_len,
+    max_peptide_len=config.data.max_peptide_len,
+    max_mhc_len=config.data.max_mhc_len,
+)
 
 val_loader = DataLoader(val_data, batch_size=config.training.batch_size, collate_fn=batch_converter, num_workers=config.training.num_workers, shuffle=False)
 test_loader = DataLoader(test_data, batch_size=config.training.batch_size, collate_fn=batch_converter, num_workers=config.training.num_workers, shuffle=False)
@@ -48,8 +54,8 @@ Trainer = ConditionalTCRDPLMTrainer(config) # conditioned on pMHC binding
 Trainer.test(val_loader, model_location=model_location)
 Trainer.test(test_loader, model_location=model_location)
 
-val_pred = Trainer.predict(val_loader, model_location=model_location, noise = 'full_mask')
-test_pred = Trainer.predict(test_loader, model_location=model_location, noise = 'full_mask')
+val_pred = Trainer.predict(val_loader, model_location=model_location, noise = 'full_mask', decoding_strategy='reparam-uncond-deterministic-linear')
+test_pred = Trainer.predict(test_loader, model_location=model_location, noise = 'full_mask', decoding_strategy='reparam-uncond-deterministic-linear')
 
 print(f"Val ACC: {val_pred['accuracy']:.3f} | Alpha ACC: {val_pred['alpha_accuracy']:.3f} | Beta ACC: {val_pred['beta_accuracy']:.3f}")
 print(f"Val Median ACC: {val_pred['median_accuracy']:.3f} | Alpha Median ACC: {val_pred['median_alpha_accuracy']:.3f} | Beta Median ACC: {val_pred['median_beta_accuracy']:.3f}")
@@ -73,8 +79,8 @@ val_data_class_ii = TCRpMHCDataset(data_path="data/tcrpmhc/class_ii/validation_p
 val_loader_class_i = DataLoader(val_data_class_i, batch_size=config.training.batch_size, collate_fn=batch_converter, num_workers=config.training.num_workers, shuffle=False)
 val_loader_class_ii = DataLoader(val_data_class_ii, batch_size=config.training.batch_size, collate_fn=batch_converter, num_workers=config.training.num_workers, shuffle=False)
 
-val_pred_class_i = Trainer.predict(val_loader_class_i, model_location=model_location, noise = 'full_mask')
-val_pred_class_ii = Trainer.predict(val_loader_class_ii, model_location=model_location, noise = 'full_mask')
+val_pred_class_i = Trainer.predict(val_loader_class_i, model_location=model_location, noise = 'full_mask', decoding_strategy='reparam-uncond-deterministic-linear')
+val_pred_class_ii = Trainer.predict(val_loader_class_ii, model_location=model_location, noise = 'full_mask', decoding_strategy='reparam-uncond-deterministic-linear')
 
 print(f"Class I Val ACC: {val_pred_class_i['accuracy']:.3f} | Alpha ACC: {val_pred_class_i['alpha_accuracy']:.3f} | Beta ACC: {val_pred_class_i['beta_accuracy']:.3f}")
 print(f"Class I Val Median ACC: {val_pred_class_i['median_accuracy']:.3f} | Alpha Median ACC: {val_pred_class_i['median_alpha_accuracy']:.3f} | Beta Median ACC: {val_pred_class_i['median_beta_accuracy']:.3f}")

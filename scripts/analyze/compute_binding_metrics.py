@@ -13,6 +13,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
     
+from TCRDiff.utils.cdr12 import cdr12_converter_kwargs
 from TCRDiff.dataset import TCRpMHCDataset, TCRpMHCBatchConverter
 from TCRDiff.utils import set_seed, load_config
 from TCRDiff.model import TCRpMHCPairFormer, TCRpMHCCoembeddingPairFormer, TCRpMHCCoembeddingModel
@@ -52,11 +53,13 @@ val_data = TCRpMHCDataset(data_path=val_data_path,
                            use_cdr12_columns=True,
                            include_target=True
 )
-batch_converter = TCRpMHCBatchConverter(max_cdr3_len=config.data.max_cdr3_len,
-                                        max_peptide_len=config.data.max_peptide_len,
-                                        max_mhc_len=config.data.max_mhc_len,
-                                        use_pmhc_struc_feat=use_pmhc_struc_feat,
-                                        pmhc_struc_feat_path=args.pmhc_struc_feat_path
+batch_converter = TCRpMHCBatchConverter(
+    **cdr12_converter_kwargs(config.model.tcr_model),
+    max_cdr3_len=config.data.max_cdr3_len,
+    max_peptide_len=config.data.max_peptide_len,
+    max_mhc_len=config.data.max_mhc_len,
+    use_pmhc_struc_feat=use_pmhc_struc_feat,
+    pmhc_struc_feat_path=args.pmhc_struc_feat_path,
 )
 val_loader = DataLoader(val_data, batch_size=config.training.test_batch_size, collate_fn=batch_converter, num_workers=config.training.num_workers, shuffle=False)
 

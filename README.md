@@ -123,6 +123,21 @@ In  summary, the design pipeline consists of these steps:
   python scripts/train/train_tcr_pmhc_cond_dplm.py --config configs/config-train-tcr-pmhc-dplm.yml
   ```
 
+#### CDR1/CDR2 features
+
+Set these options under `model.tcr_model` for binding/conditional models, or under
+`model` for TCR pretraining:
+
+```yaml
+cdr12_feature_encoding: atchley # atchley (default), onehot, or esm2
+cdr12_esm2_model: esm2_t33_650M_UR50D # used only with esm2
+cdr12_esm2_features_path: null # optional precomputed ESM2 feature cache
+```
+
+Atchley uses 5 features per residue, one-hot uses 20, and ESM2 uses the selected
+model's embedding dimension (1280 for the default 650M model). ESM2 requires `fair-esm`
+(`pip install fair-esm`) unless using a precomputed cache.
+
 <!-- ### Citation -->
 
 ### Contact

@@ -669,7 +669,8 @@ class ConditionalDPLM(nn.Module):
                  max_iter=None, temperature=None, 
                  partial_masks=None,
                  sampling_strategy='gumbel_argmax',
-                 use_draft_seq=False):
+                 use_draft_seq=False,
+                 decoding_strategy='reparam-uncond-deterministic-linear'):
         
         max_iter = max_iter
         temperature = temperature
@@ -719,8 +720,7 @@ class ConditionalDPLM(nn.Module):
                 output_scores=prev_decoder_out['output_scores'].clone(),
                 cur_tokens=output_tokens.clone(),
                 cur_scores=output_scores.clone(),
-                decoding_strategy='reparam-uncond-deterministic-linear',
-                # decoding_strategy='reparam-uncond-deterministic-cosine', # it seems cosine works better for structural data
+                decoding_strategy=decoding_strategy,
                 xt_neq_x0=prev_decoder_out['output_masks'],
                 non_special_sym_mask=non_special_sym_mask,
                 t=step + 1,
