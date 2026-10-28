@@ -20,7 +20,7 @@ TCRDiff generates antigen-specific TCRs conditioned on peptide-MHC targets and g
    conda create -n tcrdiff_env python=3.12.2
    conda activate tcrdiff_env
    ```
-3. Download PyTorch>=2.4.1, which is compatible with your CUDA version and other Python packages
+3. Install PyTorch>=2.4.1 with a compatible CUDA version, then install the remaining Python packages
 
    ```Shell
    conda install pytorch==2.4.1 pytorch-cuda=12.4 -c pytorch -c nvidia
@@ -31,18 +31,18 @@ TCRDiff generates antigen-specific TCRs conditioned on peptide-MHC targets and g
 
 The following data and model checkpoints are available at [Zenodo](https://doi.org/10.5281/zenodo.20586708).
 
-- `data/pep`: pre-trained peptide sequences.
-- `data/pmhc`: pre-trained peptide-MHC binding data and MHC sequences.
-- `data/tcr`: pre-trained TCRs in T-cell repertoires.
+- `data/pep`: peptide sequences for pretraining.
+- `data/pmhc`: peptide-MHC binding data and MHC sequences for pretraining.
+- `data/tcr`: TCR sequences from T-cell repertoires for pretraining.
 - `data/tcrpmhc`: TCR-pMHC recognition dataset.
-- `logs/tcr-pmhc-binding-subsample-2/`: checkpoints of TCRDiff binding predictor.
-- `logs/tcr-pmhc-cond-dplm-cross-attn-finetune-tcr-dplm-all-constant/`: checkpoints of TCRDiff generative model.
+- `logs/tcr-pmhc-binding-subsample-2/`: checkpoints of the TCRDiff binding predictor.
+- `logs/tcr-pmhc-cond-dplm-cross-attn-finetune-tcr-dplm-all-constant/`: checkpoints of the TCRDiff generative model.
 
 ### Usage
 
-#### Design antigen-specific TCR
+#### Design antigen-specific TCRs
 
-Try the demo in `scripts/design/` to generate MAGE-A3-epitope (EVDPIGHLY) specific TCRs (CDR3), predict their binding probabilities, and filter the results.
+Try the demo in `scripts/design/` to generate TCR CDR3 sequences conditioned on the MAGE-A3 epitope EVDPIGHLY and V-gene context, predict their on-target/off-target binding probabilities, and filter the results.
 
 ```Shell
 ./scripts/design/generate_cdr3.sh # ~10s
@@ -68,7 +68,7 @@ Finally, you can filter the generated TCRs based on the predicted binding rank p
 | 798 | CAVNPSNFGNERLTF | CASSLGGSYEYTF | EVDPIGHLY | HLA-A*01:01 | TRAV21*01 | TRBV5-1*01 | human    | 0.322026 | 96.24                | 42.74                 |
 | 994 | CAVPNSGGSNYKLTF | CASSLGGGQPQHF | EVDPIGHLY | HLA-A*01:01 | TRAV21*01 | TRBV5-1*01 | human    | 0.319059 | 96.15                | 58.37                 |
 
-In  summary, the design pipeline consists of these steps:
+The design pipeline consists of these steps:
 
 - Conditional generation of CDR3 sequences
 
@@ -87,13 +87,13 @@ In  summary, the design pipeline consists of these steps:
       --organism <organism> \ # human or mouse
       --temperature <sampling_temperature> \ # e.g., 0.1
       --sampling_strategy gumbel_argmax \
-      --max_iter <sampling_itermations> \ # e.g., 10
+      --max_iter <sampling_iterations> \ # e.g., 10
       --gpu_device <gpu_device_num> \
       --saveto <output_path>
   ```
 - Prepare inputs for binding prediction of the generated TCRs
 
-  Refer to `scripts/design/prepare_binding_inputs.py`; use your peptide-MHC (Optional: off-target peptide), V-gene, and generated outputs instead.
+  Refer to `scripts/design/prepare_binding_inputs.py`; use your peptide-MHC (optional: off-target peptide), V-gene, and generated outputs instead.
 - Predict binding probabilities and rank percentiles to filter TCR designs
 
   Refer to `scripts/design/predict_binding.sh` and `scripts/design/MAGE_A3_analysis.ipynb`; use your customized binding prediction inputs/outputs, off-target peptide, and binding rank threshold instead.
@@ -137,6 +137,27 @@ cdr12_esm2_features_path: null # optional precomputed ESM2 feature cache
 Atchley uses 5 features per residue, one-hot uses 20, and ESM2 uses the selected
 model's embedding dimension (1280 for the default 650M model). ESM2 requires `fair-esm`
 (`pip install fair-esm`) unless using a precomputed cache.
+
+#### Train the coembedding baseline
+
+The TCR-pMHC coembedding baseline configuration is provided in
+[`configs/config-train-tcr-pmhc-model-coembedding.yml`](configs/config-train-tcr-pmhc-model-coembedding.yml).
+First complete the peptide language model and TCR diffusion language model pretraining steps above.
+For this baseline, train the pMHC model using
+[`configs/config-train-pmhc-model-base.yml`](configs/config-train-pmhc-model-base.yml):
+
+```Shell
+python scripts/train/train_pmhc_model.py --config configs/config-train-pmhc-model-base.yml
+```
+
+Set `training.pretrained_pmhc_model` and `training.pretrained_tcr_model` in the
+coembedding configuration to the resulting checkpoint paths, then train the baseline:
+
+```Shell
+python scripts/train/train_tcr_pmhc_model.py \
+    --model_name coembedding \
+    --config configs/config-train-tcr-pmhc-model-coembedding.yml
+```
 
 <!-- ### Citation -->
 
