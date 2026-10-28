@@ -29,7 +29,7 @@ TCRDiff generates antigen-specific TCRs conditioned on peptide-MHC targets and g
 
 ### Download data and model checkpoints
 
-The following data and model checkpoints are available at [Zenodo](https://doi.org/10.5281/zenodo.20586708).
+The following data and model checkpoints are available at [Zenodo](https://doi.org/10.5281/zenodo.23723661).
 
 - `data/pep`: peptide sequences for pretraining.
 - `data/pmhc`: peptide-MHC binding data and MHC sequences for pretraining.
